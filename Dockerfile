@@ -1,39 +1,20 @@
-# backend/Dockerfile
-FROM node:18-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
+# 1. Node image
+FROM node:20-alpine
+
+# 2. Working directory
 WORKDIR /app
 
+# 3. Copy dependencies first
 COPY package*.json ./
-COPY prisma ./prisma/
 
-RUN npm ci
-RUN npx prisma generate
+# 4. Install dependencies
+RUN npm install
 
-FROM node:18-alpine AS builder
-RUN apk add --no-cache libc6-compat openssl
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
+# 5. Copy source code
 COPY . .
 
-RUN npm run build
+# 6. Expose NestJS port
+EXPOSE 5000
 
-FROM node:18-alpine AS runner
-RUN apk add --no-cache libc6-compat openssl
-WORKDIR /app
-
-ENV NODE_ENV production
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
-
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
-
-USER nestjs
-
-EXPOSE 3000
-
-CMD ["node", "dist/main"]
+# 7. Dev mode start (NestJS)
+CMD sh -c "npx prisma generate && npm run start:dev"
